@@ -11,7 +11,7 @@ export interface Question {
   difficulty: number
   image: string | null
   chapterId: number
-  label: number
+  label: string
 }
 
 export interface QuestionProgress {

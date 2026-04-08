@@ -2,19 +2,21 @@ import type { Question } from '../types'
 import allQuestions from '../data/questions.json'
 import select500Ids from '../data/select500.json'
 
+const questions = allQuestions as unknown as Question[]
+
 const questionsMap = new Map<number, Question>()
-for (const q of allQuestions as Question[]) {
+for (const q of questions) {
   questionsMap.set(q.id, q)
 }
 
 const select500Set = new Set(select500Ids as number[])
 
 export function getAllQuestions(): Question[] {
-  return allQuestions as Question[]
+  return questions
 }
 
 export function getSelect500(): Question[] {
-  return (allQuestions as Question[]).filter((q) => select500Set.has(q.id))
+  return questions.filter((q) => select500Set.has(q.id))
 }
 
 export function getQuestionById(id: number): Question | undefined {
