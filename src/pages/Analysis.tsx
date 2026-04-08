@@ -24,6 +24,21 @@ export default function Analysis() {
   useEffect(() => {
     if (wrongQuestions.length === 0) return
 
+    // Build a cache key based on current wrong question IDs
+    const cacheKey = wrongIds.slice().sort((a, b) => a - b).join(',')
+    const cached = sessionStorage.getItem('analysis_cache')
+
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        if (parsed.key === cacheKey) {
+          setAnalysis(parsed.analysis)
+          setTopics(parsed.topics)
+          return
+        }
+      } catch { /* ignore bad cache */ }
+    }
+
     setLoading(true)
     setError(null)
 
@@ -38,6 +53,11 @@ export default function Analysis() {
         setAnalysis(result.analysis)
         setTopics(result.topics)
         setLoading(false)
+        sessionStorage.setItem('analysis_cache', JSON.stringify({
+          key: cacheKey,
+          analysis: result.analysis,
+          topics: result.topics,
+        }))
       })
       .catch((err) => {
         setError(err.message)
