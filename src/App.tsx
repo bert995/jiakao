@@ -1,17 +1,17 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-
-function Placeholder({ title }: { title: string }) {
-  return <div className="p-8 text-2xl font-bold">{title}</div>
-}
+import Home from './pages/Home'
+import Practice from './pages/Practice'
+import Exam from './pages/Exam'
+import Wrong from './pages/Wrong'
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Placeholder title="首页" />} />
-        <Route path="/practice" element={<Placeholder title="练习" />} />
-        <Route path="/exam" element={<Placeholder title="模拟考试" />} />
-        <Route path="/wrong" element={<Placeholder title="错题本" />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/practice" element={<Practice />} />
+        <Route path="/exam" element={<Exam />} />
+        <Route path="/wrong" element={<Wrong />} />
       </Routes>
     </BrowserRouter>
   )
