@@ -19,7 +19,11 @@ export default function Practice() {
   const mode = searchParams.get('mode') === 'random' ? 'random' : 'sequential'
 
   const settings = getSettings()
-  const questions = getQuestionSet(settings.questionSet)
+  const chapterFilter = searchParams.get('chapter')
+  const allQuestions = getQuestionSet(settings.questionSet)
+  const questions = chapterFilter
+    ? allQuestions.filter((q) => q.chapterId === Number(chapterFilter))
+    : allQuestions
 
   const [order, setOrder] = useState<number[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)

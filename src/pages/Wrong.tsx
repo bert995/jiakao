@@ -65,7 +65,12 @@ export default function Wrong() {
           ← 返回
         </button>
         <span className="text-sm text-gray-500">错题本（{questions.length} 题）</span>
-        <div />
+        <button
+          onClick={() => navigate('/analysis')}
+          className="text-blue-600 text-sm font-medium"
+        >
+          分析错题
+        </button>
       </div>
 
       <div className="p-4 pb-8">

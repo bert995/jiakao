@@ -3,6 +3,7 @@ import Home from './pages/Home'
 import Practice from './pages/Practice'
 import Exam from './pages/Exam'
 import Wrong from './pages/Wrong'
+import Analysis from './pages/Analysis'
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/practice" element={<Practice />} />
         <Route path="/exam" element={<Exam />} />
         <Route path="/wrong" element={<Wrong />} />
+        <Route path="/analysis" element={<Analysis />} />
       </Routes>
     </BrowserRouter>
   )
