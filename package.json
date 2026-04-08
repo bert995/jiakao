@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "fetch": "tsx scripts/fetch-questions.ts",
-    "fetch:images": "tsx scripts/download-images.ts"
+    "fetch:images": "tsx scripts/download-images.ts",
+    "export:anki": "tsx scripts/export-anki.ts"
   },
   "dependencies": {
     "react": "^19.2.4",
