@@ -5,10 +5,11 @@ const MODEL = 'gpt-5.4'
 export interface TopicGroup {
   name: string
   tip: string
-  questionIndices: number[] // indices into the wrong question array
+  questionIndices: number[]
 }
 
 export interface AnalysisResult {
+  analysis: string
   topics: TopicGroup[]
 }
 
@@ -30,19 +31,30 @@ export async function analyzeWrongQuestions(
       messages: [
         {
           role: 'system',
-          content: `你是驾考教练。把学员的错题按知识点归类为若干专题，每个专题是一组相似/相关的题目。
+          content: `你是驾考教练。分析学员错题并按细分知识点归类。
 
-严格要求：
-1. 按知识点相似性把题目分成 3-8 个专题组（如"罚款金额"、"记分规则"、"灯光使用"、"标志标线"等）
-2. 每个专题给一个简短的名称和一句话记忆技巧
-3. 每道题必须且只能归入一个专题
-4. 返回纯 JSON，不要任何其他文字，格式如下：
-{"topics":[{"name":"专题名","tip":"一句话记忆技巧","questionIndices":[0,3,7]}]}
-其中 questionIndices 是题目前面方括号里的编号`,
+返回纯 JSON（不要 markdown 代码块包裹），格式：
+{
+  "analysis": "简要分析文本，Markdown格式",
+  "topics": [{"name": "知识点名", "tip": "记忆技巧", "questionIndices": [0,1,2]}]
+}
+
+analysis 要求（控制在 400 字以内）：
+- 第一段：一句话总结主要薄弱方向
+- 第二段"易错知识点"：列出 3-5 个最关键的易混淆知识点，每个用一行，写清正确结论（如"醉驾=吊销+5年禁驾，酒驾=暂扣6个月"）
+- 第三段"记忆口诀"：给 2-3 个实用口诀帮助记忆
+- 不要废话，不要写"建议多练习"之类的套话
+
+topics 要求：
+- 按具体知识点分组，越细越好（如"罚款200-2000的情形"而不是"罚款类"）
+- 每组 2-8 道题，如果某个知识点只有 1 道题就合并到相近组
+- 每道题只归入一个组
+- tip 写一句话记忆技巧，要具体实用
+- questionIndices 是题目前方括号里的编号`,
         },
         {
           role: 'user',
-          content: `以下是我做错的 ${questions.length} 道题，请归类：\n\n${questionList}`,
+          content: `我做错了 ${questions.length} 道题：\n\n${questionList}`,
         },
       ],
     }),
@@ -53,9 +65,8 @@ export async function analyzeWrongQuestions(
   }
 
   const data = await res.json()
-  const content = data.choices?.[0]?.message?.content || ''
+  const content: string = data.choices?.[0]?.message?.content || ''
 
-  // Extract JSON from response (might be wrapped in markdown code block)
   const jsonMatch = content.match(/\{[\s\S]*\}/)
   if (!jsonMatch) {
     throw new Error('AI 返回格式异常')

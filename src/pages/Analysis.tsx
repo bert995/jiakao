@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import Markdown from 'react-markdown'
 import { getWrongBook } from '../lib/storage'
 import { getQuestionById } from '../lib/questions'
 import { analyzeWrongQuestions } from '../lib/ai'
@@ -15,6 +16,7 @@ export default function Analysis() {
     .map((id) => getQuestionById(id))
     .filter((q): q is Question => q !== undefined)
 
+  const [analysis, setAnalysis] = useState('')
   const [topics, setTopics] = useState<TopicGroup[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,6 +35,7 @@ export default function Analysis() {
 
     analyzeWrongQuestions(input)
       .then((result) => {
+        setAnalysis(result.analysis)
         setTopics(result.topics)
         setLoading(false)
       })
@@ -59,22 +62,20 @@ export default function Analysis() {
         <button onClick={() => navigate('/wrong')} className="text-blue-600">
           ← 返回
         </button>
-        <span className="text-sm text-gray-500">错题分析</span>
+        <span className="text-sm text-gray-500">错题分析 · {wrongQuestions.length} 题</span>
         <div />
       </div>
 
       <div className="max-w-2xl mx-auto p-4 space-y-4">
-        <div className="text-sm text-gray-500">
-          共 {wrongQuestions.length} 道错题，AI 正在按知识点归类...
-        </div>
-
+        {/* Loading */}
         {loading && (
-          <div className="flex items-center gap-2 p-4 bg-white rounded-xl shadow-sm">
+          <div className="flex items-center gap-2 p-6 bg-white rounded-xl shadow-sm justify-center">
             <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-gray-600">正在分析归类中...</span>
+            <span className="text-sm text-gray-600">AI 正在分析你的错题...</span>
           </div>
         )}
 
+        {/* Error */}
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
             {error}
@@ -87,50 +88,64 @@ export default function Analysis() {
           </div>
         )}
 
-        {topics.map((topic, i) => {
-          const ids = topic.questionIndices
-            .map((idx) => wrongQuestions[idx]?.id)
-            .filter((id): id is number => id !== undefined)
-
-          if (ids.length === 0) return null
-
-          return (
-            <div key={i} className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-bold">{topic.name}</h3>
-                    <div className="text-xs text-gray-400 mt-0.5">{ids.length} 道题</div>
-                  </div>
-                </div>
-                <p className="text-sm text-amber-700 bg-amber-50 rounded-lg p-2 mt-2">
-                  💡 {topic.tip}
-                </p>
-                {/* Preview wrong questions in this topic */}
-                <div className="mt-3 space-y-1">
-                  {ids.slice(0, 3).map((id) => {
-                    const q = getQuestionById(id)
-                    if (!q) return null
-                    return (
-                      <div key={id} className="text-xs text-gray-500 truncate">
-                        · {q.question}
-                      </div>
-                    )
-                  })}
-                  {ids.length > 3 && (
-                    <div className="text-xs text-gray-400">...还有 {ids.length - 3} 题</div>
-                  )}
-                </div>
-              </div>
-              <Link
-                to={`/drill?ids=${ids.join(',')}&name=${encodeURIComponent(topic.name)}`}
-                className="block w-full py-3 bg-blue-50 text-center text-blue-600 text-sm font-medium hover:bg-blue-100 transition-colors border-t"
-              >
-                开始强化练习 →
-              </Link>
+        {/* Analysis section */}
+        {analysis && (
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <h2 className="font-bold text-lg mb-3">分析报告</h2>
+            <div className="prose prose-sm max-w-none text-gray-700 [&_table]:w-full [&_table]:text-sm [&_th]:bg-gray-50 [&_th]:p-2 [&_th]:text-left [&_td]:p-2 [&_td]:border-t [&_ul]:space-y-1 [&_ol]:space-y-1 [&_li]:text-sm [&_p]:text-sm [&_p]:leading-relaxed [&_strong]:text-gray-900">
+              <Markdown>{analysis}</Markdown>
             </div>
-          )
-        })}
+          </div>
+        )}
+
+        {/* Topic drills */}
+        {topics.length > 0 && (
+          <div>
+            <h2 className="font-bold text-lg mb-3">专项练习</h2>
+            <div className="space-y-3">
+              {topics.map((topic, i) => {
+                const ids = topic.questionIndices
+                  .map((idx) => wrongQuestions[idx]?.id)
+                  .filter((id): id is number => id !== undefined)
+
+                if (ids.length === 0) return null
+
+                return (
+                  <Link
+                    key={i}
+                    to={`/drill?ids=${ids.join(',')}&name=${encodeURIComponent(topic.name)}`}
+                    className="block bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+                  >
+                    <div className="p-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium">{topic.name}</h3>
+                        <span className="text-xs text-gray-400 shrink-0 ml-2">{ids.length} 题</span>
+                      </div>
+                      <p className="text-sm text-amber-700 mt-1">💡 {topic.tip}</p>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {ids.slice(0, 4).map((id) => {
+                          const q = getQuestionById(id)
+                          if (!q) return null
+                          return (
+                            <span key={id} className="text-xs text-gray-400 bg-gray-50 rounded px-1.5 py-0.5 truncate max-w-[200px]">
+                              {q.question.slice(0, 20)}...
+                            </span>
+                          )
+                        })}
+                        {ids.length > 4 && (
+                          <span className="text-xs text-gray-400">+{ids.length - 4}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="py-2.5 bg-blue-50 text-center text-blue-600 text-sm font-medium border-t">
+                      开始练习 →
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="h-8" />
       </div>
