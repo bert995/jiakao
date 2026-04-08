@@ -1,4 +1,4 @@
-const API_URL = 'https://www.right.codes/codex/chat/completions'
+const API_URL = 'https://www.right.codes/codex/v1/chat/completions'
 const API_KEY = 'sk-e77632623987431696b80200286ad2b3'
 const MODEL = 'gpt5.4'
 
