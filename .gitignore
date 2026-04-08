@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 src/data/questions.json
 src/data/select500.json
+public/images/
