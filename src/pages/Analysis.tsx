@@ -24,18 +24,15 @@ export default function Analysis() {
   useEffect(() => {
     if (wrongQuestions.length === 0) return
 
-    // Build a cache key based on current wrong question IDs
-    const cacheKey = wrongIds.slice().sort((a, b) => a - b).join(',')
+    // Use cached analysis if available (avoid re-loading when returning from drill)
     const cached = sessionStorage.getItem('analysis_cache')
 
     if (cached) {
       try {
         const parsed = JSON.parse(cached)
-        if (parsed.key === cacheKey) {
-          setAnalysis(parsed.analysis)
-          setTopics(parsed.topics)
-          return
-        }
+        setAnalysis(parsed.analysis)
+        setTopics(parsed.topics)
+        return
       } catch { /* ignore bad cache */ }
     }
 
@@ -54,7 +51,6 @@ export default function Analysis() {
         setTopics(result.topics)
         setLoading(false)
         sessionStorage.setItem('analysis_cache', JSON.stringify({
-          key: cacheKey,
           analysis: result.analysis,
           topics: result.topics,
         }))
@@ -83,7 +79,15 @@ export default function Analysis() {
           ← 返回
         </button>
         <span className="text-sm text-gray-500">错题分析 · {wrongQuestions.length} 题</span>
-        <div />
+        <button
+          onClick={() => {
+            sessionStorage.removeItem('analysis_cache')
+            window.location.reload()
+          }}
+          className="text-blue-600 text-sm"
+        >
+          重新分析
+        </button>
       </div>
 
       <div className="max-w-2xl mx-auto p-4 space-y-4">
