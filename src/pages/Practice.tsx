@@ -58,6 +58,7 @@ export default function Practice() {
     if (mode === 'sequential') {
       saveSettings({ lastPosition: next })
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [currentIndex, order.length, mode, navigate])
 
   const handleAnswer = (answer: string) => {

@@ -74,6 +74,7 @@ export default function Drill() {
 
     setRemaining(nextRemaining)
     setCurrentPos(nextPos)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   if (allQuestions.length === 0) {

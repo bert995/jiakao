@@ -59,6 +59,7 @@ export default function Wrong() {
       return
     }
     setCurrentIndex(currentIndex + 1)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   return (
