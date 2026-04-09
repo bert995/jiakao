@@ -56,6 +56,14 @@ export default function Drill() {
       : remaining
 
     if (nextRemaining.length === 0) {
+      // Mark this topic as completed
+      try {
+        const done: string[] = JSON.parse(localStorage.getItem('jiakao_done_topics') || '[]')
+        if (!done.includes(name)) {
+          done.push(name)
+          localStorage.setItem('jiakao_done_topics', JSON.stringify(done))
+        }
+      } catch { /* ignore */ }
       setFinished(true)
       return
     }

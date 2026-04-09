@@ -103,6 +103,7 @@ export default function Analysis() {
         <button
           onClick={() => {
             localStorage.removeItem(CACHE_KEY)
+            localStorage.removeItem('jiakao_done_topics')
             fetchAnalysis()
           }}
           className="text-blue-600 text-sm"
@@ -148,38 +149,47 @@ export default function Analysis() {
           <div>
             <h2 className="font-bold text-lg mb-3">专项练习</h2>
             <div className="space-y-3">
-              {resolvedTopics.map((topic, i) => (
-                <Link
-                  key={i}
-                  to={`/drill?ids=${topic.ids.join(',')}&name=${encodeURIComponent(topic.name)}`}
-                  className="block bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
-                >
-                  <div className="p-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium">{topic.name}</h3>
-                      <span className="text-xs text-gray-400 shrink-0 ml-2">{topic.ids.length} 题</span>
+              {resolvedTopics.map((topic, i) => {
+                const doneTopics: string[] = (() => { try { return JSON.parse(localStorage.getItem('jiakao_done_topics') || '[]') } catch { return [] } })()
+                const isDone = doneTopics.includes(topic.name)
+                return (
+                  <Link
+                    key={i}
+                    to={`/drill?ids=${topic.ids.join(',')}&name=${encodeURIComponent(topic.name)}`}
+                    className={`block bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow ${isDone ? 'opacity-75' : ''}`}
+                  >
+                    <div className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium">{topic.name}</h3>
+                          {isDone && (
+                            <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">已练完</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-400 shrink-0 ml-2">{topic.ids.length} 题</span>
+                      </div>
+                      <p className="text-sm text-amber-700 mt-1">💡 {topic.tip}</p>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {topic.ids.slice(0, 4).map((id) => {
+                          const q = getQuestionById(id)
+                          if (!q) return null
+                          return (
+                            <span key={id} className="text-xs text-gray-400 bg-gray-50 rounded px-1.5 py-0.5 truncate max-w-[200px]">
+                              {q.question.slice(0, 20)}...
+                            </span>
+                          )
+                        })}
+                        {topic.ids.length > 4 && (
+                          <span className="text-xs text-gray-400">+{topic.ids.length - 4}</span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm text-amber-700 mt-1">💡 {topic.tip}</p>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {topic.ids.slice(0, 4).map((id) => {
-                        const q = getQuestionById(id)
-                        if (!q) return null
-                        return (
-                          <span key={id} className="text-xs text-gray-400 bg-gray-50 rounded px-1.5 py-0.5 truncate max-w-[200px]">
-                            {q.question.slice(0, 20)}...
-                          </span>
-                        )
-                      })}
-                      {topic.ids.length > 4 && (
-                        <span className="text-xs text-gray-400">+{topic.ids.length - 4}</span>
-                      )}
+                    <div className={`py-2.5 text-center text-sm font-medium border-t ${isDone ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                      {isDone ? '再练一次' : '开始练习 →'}
                     </div>
-                  </div>
-                  <div className="py-2.5 bg-blue-50 text-center text-blue-600 text-sm font-medium border-t">
-                    开始练习 →
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                )
+              })}
             </div>
           </div>
         )}

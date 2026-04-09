@@ -68,6 +68,7 @@ export default function Wrong() {
         <button
           onClick={() => {
             localStorage.removeItem('jiakao_analysis_cache')
+            localStorage.removeItem('jiakao_done_topics')
             navigate('/analysis')
           }}
           className="text-blue-600 text-sm font-medium"
