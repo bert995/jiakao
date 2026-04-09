@@ -66,7 +66,10 @@ export default function Wrong() {
         </button>
         <span className="text-sm text-gray-500">错题本（{questions.length} 题）</span>
         <button
-          onClick={() => navigate('/analysis')}
+          onClick={() => {
+            localStorage.removeItem('jiakao_analysis_cache')
+            navigate('/analysis')
+          }}
           className="text-blue-600 text-sm font-medium"
         >
           分析错题

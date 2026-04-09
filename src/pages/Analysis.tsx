@@ -4,8 +4,13 @@ import Markdown from 'react-markdown'
 import { getWrongBook } from '../lib/storage'
 import { getQuestionById } from '../lib/questions'
 import { analyzeWrongQuestions } from '../lib/ai'
-import type { TopicGroup } from '../lib/ai'
 import type { Question } from '../types'
+
+interface ResolvedTopic {
+  name: string
+  tip: string
+  ids: number[]
+}
 
 export default function Analysis() {
   const navigate = useNavigate()
@@ -16,28 +21,20 @@ export default function Analysis() {
     .map((id) => getQuestionById(id))
     .filter((q): q is Question => q !== undefined)
 
+  const CACHE_KEY = 'jiakao_analysis_cache'
+
   const [analysis, setAnalysis] = useState('')
-  const [topics, setTopics] = useState<TopicGroup[]>([])
+  const [resolvedTopics, setResolvedTopics] = useState<ResolvedTopic[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const fetchAnalysis = () => {
     if (wrongQuestions.length === 0) return
-
-    // Use cached analysis if available (avoid re-loading when returning from drill)
-    const cached = sessionStorage.getItem('analysis_cache')
-
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached)
-        setAnalysis(parsed.analysis)
-        setTopics(parsed.topics)
-        return
-      } catch { /* ignore bad cache */ }
-    }
 
     setLoading(true)
     setError(null)
+    setAnalysis('')
+    setResolvedTopics([])
 
     const input = wrongQuestions.map((q, i) => ({
       index: i,
@@ -47,21 +44,45 @@ export default function Analysis() {
 
     analyzeWrongQuestions(input)
       .then((result) => {
+        const resolved: ResolvedTopic[] = result.topics.map((topic) => ({
+          name: topic.name,
+          tip: topic.tip,
+          ids: topic.questionIndices
+            .map((idx) => wrongQuestions[idx]?.id)
+            .filter((id): id is number => id !== undefined),
+        })).filter((t) => t.ids.length > 0)
+
         setAnalysis(result.analysis)
-        setTopics(result.topics)
+        setResolvedTopics(resolved)
         setLoading(false)
-        sessionStorage.setItem('analysis_cache', JSON.stringify({
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
           analysis: result.analysis,
-          topics: result.topics,
+          resolvedTopics: resolved,
         }))
       })
       .catch((err) => {
         setError(err.message)
         setLoading(false)
       })
+  }
+
+  useEffect(() => {
+    // Check localStorage cache (survives tab close, cleared when entering from Wrong page)
+    const cached = localStorage.getItem(CACHE_KEY)
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        if (parsed.analysis && Array.isArray(parsed.resolvedTopics)) {
+          setAnalysis(parsed.analysis)
+          setResolvedTopics(parsed.resolvedTopics)
+          return
+        }
+      } catch { /* ignore bad cache */ }
+    }
+    fetchAnalysis()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (wrongQuestions.length === 0) {
+  if (wrongQuestions.length === 0 && !analysis) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8">
         <p className="text-xl mb-4">没有错题可分析</p>
@@ -81,8 +102,8 @@ export default function Analysis() {
         <span className="text-sm text-gray-500">错题分析 · {wrongQuestions.length} 题</span>
         <button
           onClick={() => {
-            sessionStorage.removeItem('analysis_cache')
-            window.location.reload()
+            localStorage.removeItem(CACHE_KEY)
+            fetchAnalysis()
           }}
           className="text-blue-600 text-sm"
         >
@@ -123,50 +144,42 @@ export default function Analysis() {
         )}
 
         {/* Topic drills */}
-        {topics.length > 0 && (
+        {resolvedTopics.length > 0 && (
           <div>
             <h2 className="font-bold text-lg mb-3">专项练习</h2>
             <div className="space-y-3">
-              {topics.map((topic, i) => {
-                const ids = topic.questionIndices
-                  .map((idx) => wrongQuestions[idx]?.id)
-                  .filter((id): id is number => id !== undefined)
-
-                if (ids.length === 0) return null
-
-                return (
-                  <Link
-                    key={i}
-                    to={`/drill?ids=${ids.join(',')}&name=${encodeURIComponent(topic.name)}`}
-                    className="block bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
-                  >
-                    <div className="p-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium">{topic.name}</h3>
-                        <span className="text-xs text-gray-400 shrink-0 ml-2">{ids.length} 题</span>
-                      </div>
-                      <p className="text-sm text-amber-700 mt-1">💡 {topic.tip}</p>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {ids.slice(0, 4).map((id) => {
-                          const q = getQuestionById(id)
-                          if (!q) return null
-                          return (
-                            <span key={id} className="text-xs text-gray-400 bg-gray-50 rounded px-1.5 py-0.5 truncate max-w-[200px]">
-                              {q.question.slice(0, 20)}...
-                            </span>
-                          )
-                        })}
-                        {ids.length > 4 && (
-                          <span className="text-xs text-gray-400">+{ids.length - 4}</span>
-                        )}
-                      </div>
+              {resolvedTopics.map((topic, i) => (
+                <Link
+                  key={i}
+                  to={`/drill?ids=${topic.ids.join(',')}&name=${encodeURIComponent(topic.name)}`}
+                  className="block bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+                >
+                  <div className="p-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium">{topic.name}</h3>
+                      <span className="text-xs text-gray-400 shrink-0 ml-2">{topic.ids.length} 题</span>
                     </div>
-                    <div className="py-2.5 bg-blue-50 text-center text-blue-600 text-sm font-medium border-t">
-                      开始练习 →
+                    <p className="text-sm text-amber-700 mt-1">💡 {topic.tip}</p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {topic.ids.slice(0, 4).map((id) => {
+                        const q = getQuestionById(id)
+                        if (!q) return null
+                        return (
+                          <span key={id} className="text-xs text-gray-400 bg-gray-50 rounded px-1.5 py-0.5 truncate max-w-[200px]">
+                            {q.question.slice(0, 20)}...
+                          </span>
+                        )
+                      })}
+                      {topic.ids.length > 4 && (
+                        <span className="text-xs text-gray-400">+{topic.ids.length - 4}</span>
+                      )}
                     </div>
-                  </Link>
-                )
-              })}
+                  </div>
+                  <div className="py-2.5 bg-blue-50 text-center text-blue-600 text-sm font-medium border-t">
+                    开始练习 →
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
         )}
