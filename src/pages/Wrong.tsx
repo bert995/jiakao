@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import QuestionCard from '../components/QuestionCard'
 import AnswerResult from '../components/AnswerResult'
@@ -13,12 +13,15 @@ import type { Question } from '../types'
 
 export default function Wrong() {
   const navigate = useNavigate()
-  const wrongBook = getWrongBook()
-  const wrongIds = Object.keys(wrongBook).map(Number)
 
-  const questions: Question[] = wrongIds
-    .map((id) => getQuestionById(id))
-    .filter((q): q is Question => q !== undefined)
+  // Capture questions once on mount so the list stays stable during this session
+  const questions: Question[] = useMemo(() => {
+    const wrongBook = getWrongBook()
+    const wrongIds = Object.keys(wrongBook).map(Number)
+    return wrongIds
+      .map((id) => getQuestionById(id))
+      .filter((q): q is Question => q !== undefined)
+  }, [])
 
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
