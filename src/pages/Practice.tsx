@@ -40,8 +40,15 @@ export default function Practice() {
       setOrder(shuffled.length > 0 ? shuffled : questions.map((_, i) => i).sort(() => Math.random() - 0.5))
       setCurrentIndex(0)
     } else {
-      setOrder(questions.map((_, i) => i))
-      setCurrentIndex(settings.lastPosition)
+      const seqOrder = questions.map((_, i) => i)
+      setOrder(seqOrder)
+      const progress = getProgress()
+      const start = Math.min(settings.lastPosition, Math.max(0, questions.length - 1))
+      let idx = seqOrder.findIndex((i, pos) => pos >= start && !progress[questions[i].id])
+      if (idx === -1) {
+        idx = seqOrder.findIndex((i) => !progress[questions[i].id])
+      }
+      setCurrentIndex(idx === -1 ? start : idx)
     }
   }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
