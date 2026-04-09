@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import QuestionCard from '../components/QuestionCard'
 import AnswerResult from '../components/AnswerResult'
 import { getQuestionById } from '../lib/questions'
-import { saveQuestionResult, addToWrongBook, markWrongBookCorrect } from '../lib/storage'
+import { saveQuestionResult, addToWrongBook } from '../lib/storage'
 import type { Question } from '../types'
 
 export default function Drill() {
@@ -38,7 +38,6 @@ export default function Drill() {
     saveQuestionResult(question.id, isCorrect)
 
     if (isCorrect) {
-      markWrongBookCorrect(question.id)
       setRoundCorrect((c) => c + 1)
     } else {
       addToWrongBook(question.id)
