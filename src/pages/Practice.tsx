@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import QuestionCard from '../components/QuestionCard'
 import AnswerResult from '../components/AnswerResult'
-import { getQuestionSet } from '../lib/questions'
+import { getQuestionSet, getQuestionById } from '../lib/questions'
 import {
   getSettings,
   saveSettings,
@@ -10,6 +10,7 @@ import {
   addToWrongBook,
   markWrongBookCorrect,
   getProgress,
+  getWrongBook,
 } from '../lib/storage'
 import type { Question } from '../types'
 
@@ -20,10 +21,20 @@ export default function Practice() {
 
   const settings = getSettings()
   const chapterFilter = searchParams.get('chapter')
-  const allQuestions = getQuestionSet(settings.questionSet)
-  const questions = chapterFilter
-    ? allQuestions.filter((q) => q.chapterId === Number(chapterFilter))
-    : allQuestions
+  const baseSet = getQuestionSet(settings.questionSet)
+  const baseQuestions = chapterFilter
+    ? baseSet.filter((q) => q.chapterId === Number(chapterFilter))
+    : baseSet
+
+  // Expand pool with wrong-book questions that aren't already in the base set
+  const baseIds = new Set(baseQuestions.map((q) => q.id))
+  const wrongBook = getWrongBook()
+  const extraWrong: Question[] = Object.keys(wrongBook)
+    .map(Number)
+    .filter((id) => !baseIds.has(id))
+    .map((id) => getQuestionById(id))
+    .filter((q): q is Question => !!q)
+  const questions: Question[] = [...baseQuestions, ...extraWrong]
 
   const [order, setOrder] = useState<number[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -31,24 +42,49 @@ export default function Practice() {
   const [autoNext, setAutoNext] = useState(settings.autoNext)
 
   useEffect(() => {
+    // Split into wrong and non-wrong indices within the current questions pool
+    const wrongIdxs: number[] = []
+    const normalIdxs: number[] = []
+    for (let i = 0; i < questions.length; i++) {
+      if (wrongBook[questions[i].id]) wrongIdxs.push(i)
+      else normalIdxs.push(i)
+    }
+
+    // Interleave: every 5 questions, the 5th is a wrong question (cycling)
+    const interleave = (base: number[]): number[] => {
+      if (wrongIdxs.length === 0) return base
+      const result: number[] = []
+      let wi = 0
+      for (let i = 0; i < base.length; i++) {
+        result.push(base[i])
+        if ((i + 1) % 4 === 0) {
+          result.push(wrongIdxs[wi % wrongIdxs.length])
+          wi++
+        }
+      }
+      return result
+    }
+
     if (mode === 'random') {
-      const progress = getProgress()
-      const unanswered = questions
-        .map((_, i) => i)
-        .filter((i) => !progress[questions[i].id] || !progress[questions[i].id].correct)
-      const shuffled = unanswered.sort(() => Math.random() - 0.5)
-      setOrder(shuffled.length > 0 ? shuffled : questions.map((_, i) => i).sort(() => Math.random() - 0.5))
+      const shuffled = [...normalIdxs].sort(() => Math.random() - 0.5)
+      const shuffledWrong = [...wrongIdxs].sort(() => Math.random() - 0.5)
+      // Replace wrongIdxs inside interleave via closure — rebuild with shuffled wrongs
+      const result: number[] = []
+      let wi = 0
+      for (let i = 0; i < shuffled.length; i++) {
+        result.push(shuffled[i])
+        if ((i + 1) % 4 === 0 && shuffledWrong.length > 0) {
+          result.push(shuffledWrong[wi % shuffledWrong.length])
+          wi++
+        }
+      }
+      setOrder(result.length > 0 ? result : questions.map((_, i) => i))
       setCurrentIndex(0)
     } else {
-      const seqOrder = questions.map((_, i) => i)
+      const seqOrder = interleave(normalIdxs)
       setOrder(seqOrder)
-      const progress = getProgress()
-      const start = Math.min(settings.lastPosition, Math.max(0, questions.length - 1))
-      let idx = seqOrder.findIndex((i, pos) => pos >= start && !progress[questions[i].id])
-      if (idx === -1) {
-        idx = seqOrder.findIndex((i) => !progress[questions[i].id])
-      }
-      setCurrentIndex(idx === -1 ? start : idx)
+      const start = Math.min(settings.lastPosition, Math.max(0, seqOrder.length - 1))
+      setCurrentIndex(start < 0 ? 0 : start)
     }
   }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
