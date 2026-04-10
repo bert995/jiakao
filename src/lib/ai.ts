@@ -13,6 +13,27 @@ export interface AnalysisResult {
   topics: TopicGroup[]
 }
 
+async function callApi(
+  body: string,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${API_KEY}`,
+      },
+      body,
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function analyzeWrongQuestions(
   questions: { index: number; question: string; correctAnswer: string }[],
 ): Promise<AnalysisResult> {
@@ -20,18 +41,12 @@ export async function analyzeWrongQuestions(
     .map((q) => `[${q.index}] ${q.question} (答案: ${q.correctAnswer})`)
     .join('\n')
 
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        {
-          role: 'system',
-          content: `你是驾考教练。分析学员错题并按细分知识点归类。
+  const body = JSON.stringify({
+    model: MODEL,
+    messages: [
+      {
+        role: 'system',
+        content: `你是驾考教练。分析学员错题并按细分知识点归类。
 
 返回纯 JSON（不要 markdown 代码块包裹），格式：
 {
@@ -51,26 +66,42 @@ topics 要求：
 - 每道题只归入一个组
 - tip 写一句话记忆技巧，要具体实用
 - questionIndices 是题目前方括号里的编号`,
-        },
-        {
-          role: 'user',
-          content: `我做错了 ${questions.length} 道题：\n\n${questionList}`,
-        },
-      ],
-    }),
+      },
+      {
+        role: 'user',
+        content: `我做错了 ${questions.length} 道题：\n\n${questionList}`,
+      },
+    ],
   })
 
-  if (!res.ok) {
-    throw new Error(`API 请求失败: ${res.status}`)
+  // Try up to 2 times with 60s timeout each
+  let lastErr: unknown
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await callApi(body, 60000)
+      if (!res.ok) {
+        throw new Error(`API 请求失败: ${res.status}`)
+      }
+      const data = await res.json()
+      const content: string = data.choices?.[0]?.message?.content || ''
+      const jsonMatch = content.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        throw new Error('AI 返回格式异常')
+      }
+      return JSON.parse(jsonMatch[0]) as AnalysisResult
+    } catch (err) {
+      lastErr = err
+      if (attempt === 0) {
+        // brief wait before retry
+        await new Promise((r) => setTimeout(r, 1500))
+        continue
+      }
+    }
   }
 
-  const data = await res.json()
-  const content: string = data.choices?.[0]?.message?.content || ''
-
-  const jsonMatch = content.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) {
-    throw new Error('AI 返回格式异常')
+  const msg = lastErr instanceof Error ? lastErr.message : String(lastErr)
+  if (msg.includes('abort') || msg.toLowerCase().includes('load failed')) {
+    throw new Error('网络加载失败，请检查网络后重试')
   }
-
-  return JSON.parse(jsonMatch[0]) as AnalysisResult
+  throw new Error(`分析失败：${msg}`)
 }
