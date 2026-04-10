@@ -56,17 +56,14 @@ export default function Practice() {
 
   const goNext = useCallback(() => {
     setSelectedAnswer(null)
-    const next = currentIndex + 1
-    if (next >= order.length) {
-      navigate('/')
-      return
-    }
+    // Loop back to start when reaching the end
+    const next = (currentIndex + 1) % order.length
     setCurrentIndex(next)
     if (mode === 'sequential') {
       saveSettings({ lastPosition: next })
     }
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [currentIndex, order.length, mode, navigate])
+  }, [currentIndex, order.length, mode])
 
   const handleAnswer = (answer: string) => {
     if (selectedAnswer !== null) return
