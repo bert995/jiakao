@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 import { getProgress, getWrongBook, getExamHistory, getSettings, saveSettings } from '../lib/storage'
-import { getQuestionSet } from '../lib/questions'
+import { getQuestionSet, getNumberQuestions } from '../lib/questions'
 
 const PASS_SCORE = 90
+const NUMBER_THEME_NAME = '数字专题·扣分罚款'
 
 export default function Home() {
   const settings = getSettings()
@@ -10,6 +11,13 @@ export default function Home() {
   const progress = getProgress()
   const wrongBook = getWrongBook()
   const examHistory = getExamHistory()
+  const numberQuestionCount = getNumberQuestions('all').length
+  const numberThemeDone = (() => {
+    try {
+      const done: string[] = JSON.parse(localStorage.getItem('jiakao_done_topics') || '[]')
+      return done.includes(NUMBER_THEME_NAME)
+    } catch { return false }
+  })()
 
   const doneCount = questions.filter((q) => progress[q.id]).length
   const correctCount = questions.filter((q) => progress[q.id]?.correct).length
@@ -74,6 +82,24 @@ export default function Home() {
           <div>
             <div className="font-medium">随机练习</div>
             <div className="text-sm text-gray-500">优先未做和错题</div>
+          </div>
+          <span className="text-gray-400">→</span>
+        </Link>
+
+        <Link
+          to={`/drill?topic=numbers&name=${encodeURIComponent(NUMBER_THEME_NAME)}`}
+          className="flex items-center justify-between bg-white rounded-xl p-4 shadow-sm"
+        >
+          <div>
+            <div className="font-medium flex items-center gap-2">
+              数字专题 · 扣分/罚款/距离
+              {numberThemeDone && (
+                <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">已练完</span>
+              )}
+            </div>
+            <div className="text-sm text-gray-500">
+              {numberQuestionCount} 道含数字题，反复刷到全对
+            </div>
           </div>
           <span className="text-gray-400">→</span>
         </Link>

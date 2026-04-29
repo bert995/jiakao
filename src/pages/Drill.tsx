@@ -2,26 +2,34 @@ import { useState, useMemo } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import QuestionCard from '../components/QuestionCard'
 import AnswerResult from '../components/AnswerResult'
-import { getQuestionById } from '../lib/questions'
+import { getQuestionById, getNumberQuestions } from '../lib/questions'
 import { saveQuestionResult, addToWrongBook } from '../lib/storage'
 import type { Question } from '../types'
+
+const shuffledIndices = (n: number) =>
+  Array.from({ length: n }, (_, i) => i).sort(() => Math.random() - 0.5)
 
 export default function Drill() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const name = searchParams.get('name') || '专项练习'
+  const topic = searchParams.get('topic')
+
   const idList = useMemo(() => {
+    if (topic === 'numbers') {
+      return getNumberQuestions('all').map((q) => q.id)
+    }
     const raw = searchParams.get('ids') || ''
     return raw.split(',').map(Number).filter(Boolean)
-  }, [searchParams])
+  }, [topic, searchParams])
 
   const allQuestions: Question[] = useMemo(
     () => idList.map((id) => getQuestionById(id)).filter((q): q is Question => q !== undefined),
     [idList],
   )
 
-  // Track which questions still need to be answered correctly
-  const [remaining, setRemaining] = useState<number[]>(() => allQuestions.map((_, i) => i))
+  // Track which questions still need to be answered correctly (shuffled for variety)
+  const [remaining, setRemaining] = useState<number[]>(() => shuffledIndices(allQuestions.length))
   const [currentPos, setCurrentPos] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [roundCorrect, setRoundCorrect] = useState(0)
@@ -89,6 +97,21 @@ export default function Drill() {
   }
 
   if (finished) {
+    const restartRound = () => {
+      setRemaining(shuffledIndices(allQuestions.length))
+      setCurrentPos(0)
+      setSelectedAnswer(null)
+      setRoundCorrect(0)
+      setRoundWrong(0)
+      setFinished(false)
+      try {
+        const done: string[] = JSON.parse(localStorage.getItem('jiakao_done_topics') || '[]')
+        const filtered = done.filter((t) => t !== name)
+        localStorage.setItem('jiakao_done_topics', JSON.stringify(filtered))
+      } catch { /* ignore */ }
+      window.scrollTo({ top: 0 })
+    }
+
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8">
         <div className="bg-white rounded-xl p-8 shadow-sm text-center max-w-sm">
@@ -100,14 +123,20 @@ export default function Drill() {
           </p>
           <div className="space-y-2">
             <button
-              onClick={() => navigate('/analysis')}
+              onClick={restartRound}
               className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium"
+            >
+              再来一轮（打乱顺序）
+            </button>
+            <button
+              onClick={() => navigate('/analysis')}
+              className="w-full py-3 border rounded-lg text-gray-700"
             >
               继续练其他专题
             </button>
             <button
               onClick={() => navigate('/')}
-              className="w-full py-3 border rounded-lg text-gray-600"
+              className="w-full py-3 border rounded-lg text-gray-500"
             >
               返回首页
             </button>
